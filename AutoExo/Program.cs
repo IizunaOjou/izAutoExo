@@ -256,15 +256,23 @@ namespace AviUtlAutoSubtitleExo
                 // -bo 1 -bs 1 は使わない
                 // beam search は標準設定のまま
                 // --no-speech-thold で無音区間の幻聴を軽減
+                bool useCuda = rbCuda.Checked && File.Exists(whisperCuda);
+
                 string whisperArgs =
-                $"-m \"{modelPath}\" " +
-                $"-f \"{wav}\" " +
-                "-l ja " +
-                "-osrt " +
-                "--no-speech-thold 0.80 " +
-                "--max-context 0 " +
-                $"-t {threads} " +
-                $"-of \"{outBase}\"";
+                    $"-m \"{modelPath}\" " +
+                    $"-f \"{wav}\" " +
+                    "-l ja " +
+                    "-osrt " +
+                    "--no-speech-thold 0.80 " +
+                    "--max-context 0 " +
+                    $"-t {threads} ";
+
+                if (!useCuda)
+                {
+                    whisperArgs += "--no-gpu ";
+                }
+
+                whisperArgs += $"-of \"{outBase}\"";
 
                 try
                 {
