@@ -1,3 +1,4 @@
+## English
 This software includes:
 
 - FFmpeg (LGPL/GPL)
@@ -8,6 +9,7 @@ The model is not included in this distribution and will be downloaded automatica
 
 See LICENSE folder for details.
 
+## 日本語
 本ソフトには以下が含まれます：
 
 - FFmpeg（LGPL/GPL）
