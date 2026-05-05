@@ -189,6 +189,69 @@ namespace AviUtlAutoSubtitleExo
             return 30;
         }
 
+        async Task EnsureModelAsync(string modelPath)
+        {
+            if (File.Exists(modelPath))
+                return;
+
+            var url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin";
+
+            var result = MessageBox.Show(
+                "Whisperモデルが見つかりません。\n約3GBのファイルをダウンロードします。よろしいですか？",
+                "モデルダウンロード",
+                MessageBoxButtons.YesNo
+            );
+
+            if (result != DialogResult.Yes)
+                throw new Exception("モデルが必要です。");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(modelPath)!);
+
+            using var client = new HttpClient(
+                new HttpClientHandler
+                {
+                    MaxConnectionsPerServer = 8
+                }
+            );
+
+            client.Timeout = TimeSpan.FromHours(1);
+
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            long? total = response.Content.Headers.ContentLength;
+
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var fs = new FileStream(modelPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+            byte[] buffer = new byte[1024 * 1024];
+            long readTotal = 0;
+            double lastReported = 0;
+
+            while (true)
+            {
+                int read = await stream.ReadAsync(buffer, 0, buffer.Length);
+                if (read == 0) break;
+
+                await fs.WriteAsync(buffer, 0, read);
+                readTotal += read;
+
+                if (total.HasValue)
+                {
+                    double percent = readTotal * 100.0 / total.Value;
+
+                    // ★ 1%以上進んだときだけ表示
+                    if (percent - lastReported >= 1.0)
+                    {
+                        Append($"ダウンロード中... {percent:0}%");
+                        lastReported = percent;
+                    }
+                }
+            }
+
+            Append("モデルダウンロード完了");
+        }
+
         async Task RunAsync()
         {
             try
@@ -211,7 +274,15 @@ namespace AviUtlAutoSubtitleExo
                 if (!File.Exists(txtVideo.Text))
                     throw new FileNotFoundException("動画ファイルがありません", txtVideo.Text);
 
+                // ここからモデル処理
                 string modelPath = ResolveModelPath(txtModel.Text);
+
+                if (!File.Exists(modelPath))
+                {
+                    Append("モデルが見つからないためダウンロードします...");
+                    await EnsureModelAsync(modelPath);
+                }
+
                 if (!File.Exists(modelPath))
                     throw new FileNotFoundException("モデルファイルがありません", modelPath);
 
